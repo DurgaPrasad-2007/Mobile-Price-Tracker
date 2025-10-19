@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Price Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-shadow {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .price-badge {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .price-badge.low { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .price-badge.medium { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .price-badge.high { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .price-badge.very-high { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div x-data="mobilePriceTracker()" class="min-h-screen">
+        <!-- Header -->
+        <header class="gradient-bg text-white py-6">
+            <div class="container mx-auto px-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-mobile-alt text-3xl"></i>
+                        <h1 class="text-3xl font-bold">Mobile Price Tracker</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-2">
+                            <div :class="apiStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'" class="w-3 h-3 rounded-full"></div>
+                            <span class="text-sm">API Status: <span x-text="apiStatus"></span></span>
+                        </div>
+                        <button @click="checkHealth()" class="bg-white text-purple-600 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                            <i class="fas fa-heartbeat mr-2"></i>Health Check
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-8">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">Total Predictions</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="stats.total_predictions || 0"></p>
+                        </div>
+                        <div class="bg-blue-100 p-3 rounded-lg">
+                            <i class="fas fa-chart-line text-blue-600"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">Avg Confidence</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="(stats.average_confidence || 0).toFixed(3)"></p>
+                        </div>
+                        <div class="bg-green-100 p-3 rounded-lg">
+                            <i class="fas fa-bullseye text-green-600"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">Avg Processing Time</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="(stats.average_processing_time || 0).toFixed(3) + 's'"></p>
+                        </div>
+                        <div class="bg-yellow-100 p-3 rounded-lg">
+                            <i class="fas fa-clock text-yellow-600"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">Predictions/Min</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="(stats.predictions_per_minute || 0).toFixed(1)"></p>
+                        </div>
+                        <div class="bg-purple-100 p-3 rounded-lg">
+                            <i class="fas fa-tachometer-alt text-purple-600"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prediction Form -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Input Form -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">
+                        <i class="fas fa-mobile-alt mr-2 text-purple-600"></i>
+                        Mobile Phone Specifications
+                    </h2>
+                    
+                    <form @submit.prevent="predictPrice()" class="space-y-4">
+                        <!-- Basic Specs -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Battery Power (mAh)</label>
+                                <input x-model="form.battery_power" type="number" min="100" max="6000" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">RAM (MB)</label>
+                                <input x-model="form.ram" type="number" min="128" max="16384" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Internal Memory (GB)</label>
+                                <input x-model="form.int_memory" type="number" min="1" max="512" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Weight (grams)</label>
+                                <input x-model="form.mobile_wt" type="number" min="50" max="300" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                        </div>
+
+                        <!-- Camera Specs -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Primary Camera (MP)</label>
+                                <input x-model="form.pc" type="number" min="0" max="100" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Front Camera (MP)</label>
+                                <input x-model="form.fc" type="number" min="0" max="50" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                        </div>
+
+                        <!-- Display Specs -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Screen Height (cm)</label>
+                                <input x-model="form.sc_h" type="number" step="0.1" min="3" max="25" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Screen Width (cm)</label>
+                                <input x-model="form.sc_w" type="number" step="0.1" min="2" max="20" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Pixel Height</label>
+                                <input x-model="form.px_height" type="number" min="240" max="4320" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Pixel Width</label>
+                                <input x-model="form.px_width" type="number" min="320" max="7680" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                        </div>
+
+                        <!-- Performance Specs -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Clock Speed (GHz)</label>
+                                <input x-model="form.clock_speed" type="number" step="0.1" min="0.1" max="5" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Number of Cores</label>
+                                <input x-model="form.n_cores" type="number" min="1" max="12" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Talk Time (hours)</label>
+                                <input x-model="form.talk_time" type="number" min="1" max="50" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Mobile Depth (cm)</label>
+                                <input x-model="form.m_deep" type="number" step="0.1" min="0.1" max="2" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                        </div>
+
+                        <!-- Connectivity Features -->
+                        <div class="space-y-3">
+                            <h3 class="text-lg font-semibold text-gray-900">Connectivity Features</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <label class="flex items-center space-x-2">
+                                    <input x-model="form.blue" type="checkbox" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                    <span class="text-sm text-gray-700">Bluetooth</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input x-model="form.wifi" type="checkbox" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                    <span class="text-sm text-gray-700">WiFi</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input x-model="form.four_g" type="checkbox" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                    <span class="text-sm text-gray-700">4G</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input x-model="form.three_g" type="checkbox" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                    <span class="text-sm text-gray-700">3G</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input x-model="form.dual_sim" type="checkbox" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                    <span class="text-sm text-gray-700">Dual SIM</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input x-model="form.touch_screen" type="checkbox" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                    <span class="text-sm text-gray-700">Touch Screen</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex space-x-4 pt-4">
+                            <button type="submit" :disabled="loading" 
+                                    class="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                                <i class="fas fa-magic mr-2"></i>
+                                <span x-text="loading ? 'Predicting...' : 'Predict Price Range'"></span>
+                            </button>
+                            <button type="button" @click="loadSampleData()" 
+                                    class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                                <i class="fas fa-download mr-2"></i>Sample Data
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Results -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">
+                        <i class="fas fa-chart-pie mr-2 text-green-600"></i>
+                        Prediction Results
+                    </h2>
+
+                    <!-- Loading State -->
+                    <div x-show="loading" class="text-center py-8">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                        <p class="mt-2 text-gray-600">Analyzing mobile phone specifications...</p>
+                    </div>
+
+                    <!-- Results -->
+                    <div x-show="!loading && result" class="space-y-6">
+                        <!-- Main Result -->
+                        <div class="text-center">
+                            <div class="price-badge inline-block px-6 py-3 rounded-full text-white font-bold text-xl mb-4" 
+                                 :class="getPriceClass(result.price_range)">
+                                <span x-text="result.price_range_label"></span>
+                            </div>
+                            <p class="text-gray-600">Predicted Price Range</p>
+                        </div>
+
+                        <!-- Confidence -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700">Confidence</span>
+                                <span class="text-sm font-bold text-gray-900" x-text="(result.confidence * 100).toFixed(1) + '%'"></span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-500" 
+                                     :style="`width: ${result.confidence * 100}%`"></div>
+                            </div>
+                        </div>
+
+                        <!-- Processing Time -->
+                        <div class="flex justify-between items-center text-sm text-gray-600">
+                            <span>Processing Time</span>
+                            <span class="font-semibold" x-text="result.processing_time.toFixed(3) + 's'"></span>
+                        </div>
+
+                        <!-- Probability Breakdown -->
+                        <div class="space-y-3">
+                            <h3 class="text-lg font-semibold text-gray-900">Price Range Probabilities</h3>
+                            <div class="space-y-2">
+                                <template x-for="(prob, range) in result.probabilities" :key="range">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-700" x-text="getRangeLabel(range)"></span>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-20 bg-gray-200 rounded-full h-2">
+                                                <div class="bg-gradient-to-r from-purple-400 to-pink-400 h-2 rounded-full" 
+                                                     :style="`width: ${prob * 100}%`"></div>
+                                            </div>
+                                            <span class="text-sm font-semibold text-gray-900 w-12 text-right" 
+                                                  x-text="(prob * 100).toFixed(1) + '%'"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- No Results -->
+                    <div x-show="!loading && !result" class="text-center py-8 text-gray-500">
+                        <i class="fas fa-mobile-alt text-4xl mb-4"></i>
+                        <p>Enter mobile phone specifications to get price prediction</p>
+                    </div>
+
+                    <!-- Error State -->
+                    <div x-show="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle text-red-600 mr-2"></i>
+                            <span class="text-red-800 font-medium">Error</span>
+                        </div>
+                        <p class="text-red-700 mt-1" x-text="error"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Predictions -->
+            <div x-show="predictions.length > 0" class="mt-8">
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">
+                        <i class="fas fa-history mr-2 text-blue-600"></i>
+                        Recent Predictions
+                    </h2>
+                    <div class="space-y-3">
+                        <template x-for="(pred, index) in predictions.slice(0, 5)" :key="index">
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <div class="price-badge px-3 py-1 rounded-full text-white text-sm font-semibold" 
+                                         :class="getPriceClass(pred.price_range)">
+                                        <span x-text="pred.price_range_label"></span>
+                                    </div>
+                                    <span class="text-sm text-gray-600" x-text="pred.specs"></span>
+                                </div>
+                                <div class="text-sm text-gray-500" x-text="pred.timestamp"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function mobilePriceTracker() {
+            return {
+                apiStatus: 'checking',
+                loading: false,
+                error: null,
+                result: null,
+                stats: {},
+                predictions: [],
+                form: {
+                    battery_power: 2000,
+                    blue: 1,
+                    clock_speed: 2.0,
+                    dual_sim: 1,
+                    fc: 8,
+                    four_g: 1,
+                    int_memory: 64,
+                    m_deep: 0.8,
+                    mobile_wt: 150,
+                    n_cores: 4,
+                    pc: 12,
+                    px_height: 1920,
+                    px_width: 1080,
+                    ram: 4096,
+                    sc_h: 15,
+                    sc_w: 8,
+                    talk_time: 20,
+                    three_g: 1,
+                    touch_screen: 1,
+                    wifi: 1
+                },
+
+                init() {
+                    this.checkHealth();
+                    this.loadStats();
+                },
+
+                async checkHealth() {
+                    try {
+                        const response = await fetch('/health');
+                        const data = await response.json();
+                        this.apiStatus = data.status === 'healthy' ? 'connected' : 'disconnected';
+                    } catch (error) {
+                        this.apiStatus = 'disconnected';
+                    }
+                },
+
+                async loadStats() {
+                    try {
+                        const response = await fetch('/stats');
+                        this.stats = await response.json();
+                    } catch (error) {
+                        console.error('Failed to load stats:', error);
+                    }
+                },
+
+                async predictPrice() {
+                    this.loading = true;
+                    this.error = null;
+                    this.result = null;
+
+                    try {
+                        const response = await fetch('/predict', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(this.form)
+                        });
+
+                        if (!response.ok) {
+                            if (response.status === 503) {
+                                // Models not trained, try to train them
+                                await this.trainModels();
+                                // Retry prediction
+                                const retryResponse = await fetch('/predict', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify(this.form)
+                                });
+                                
+                                if (!retryResponse.ok) {
+                                    throw new Error(`HTTP error! status: ${retryResponse.status}`);
+                                }
+                                
+                                this.result = await retryResponse.json();
+                            } else {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                        } else {
+                            this.result = await response.json();
+                        }
+                        
+                        // Add to recent predictions
+                        this.predictions.unshift({
+                            ...this.result,
+                            specs: `${this.form.ram}MB RAM, ${this.form.int_memory}GB Storage`,
+                            timestamp: new Date().toLocaleTimeString()
+                        });
+
+                        // Reload stats
+                        this.loadStats();
+
+                    } catch (error) {
+                        this.error = error.message;
+                        console.error('Prediction failed:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async trainModels() {
+                    try {
+                        const response = await fetch('/train', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error(`Failed to train models: ${response.status}`);
+                        }
+                        
+                        const result = await response.json();
+                        console.log('Models trained:', result.message);
+                        
+                    } catch (error) {
+                        console.error('Failed to train models:', error);
+                        throw error;
+                    }
+                },
+
+                loadSampleData() {
+                    const samples = [
+                        {
+                            battery_power: 1500, blue: 0, clock_speed: 1.0, dual_sim: 0, fc: 2, four_g: 0,
+                            int_memory: 8, m_deep: 1.0, mobile_wt: 200, n_cores: 2, pc: 5, px_height: 480,
+                            px_width: 320, ram: 512, sc_h: 10, sc_w: 6, talk_time: 10, three_g: 1,
+                            touch_screen: 1, wifi: 0
+                        },
+                        {
+                            battery_power: 3000, blue: 1, clock_speed: 2.5, dual_sim: 1, fc: 16, four_g: 1,
+                            int_memory: 128, m_deep: 0.7, mobile_wt: 180, n_cores: 8, pc: 24, px_height: 2160,
+                            px_width: 1440, ram: 8192, sc_h: 16, sc_w: 9, talk_time: 25, three_g: 1,
+                            touch_screen: 1, wifi: 1
+                        },
+                        {
+                            battery_power: 4500, blue: 1, clock_speed: 3.0, dual_sim: 1, fc: 32, four_g: 1,
+                            int_memory: 256, m_deep: 0.6, mobile_wt: 120, n_cores: 8, pc: 64, px_height: 2160,
+                            px_width: 1440, ram: 8192, sc_h: 18, sc_w: 10, talk_time: 30, three_g: 1,
+                            touch_screen: 1, wifi: 1
+                        }
+                    ];
+                    
+                    const randomSample = samples[Math.floor(Math.random() * samples.length)];
+                    Object.assign(this.form, randomSample);
+                },
+
+                getPriceClass(priceRange) {
+                    const classes = {
+                        0: 'low',
+                        1: 'medium', 
+                        2: 'high',
+                        3: 'very-high'
+                    };
+                    return classes[priceRange] || '';
+                },
+
+                getRangeLabel(range) {
+                    const labels = {
+                        'range_0': 'Low Cost',
+                        'range_1': 'Medium Cost',
+                        'range_2': 'High Cost',
+                        'range_3': 'Very High Cost'
+                    };
+                    return labels[range] || range;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

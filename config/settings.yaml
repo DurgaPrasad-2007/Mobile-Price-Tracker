@@ -1,0 +1,30 @@
+# Configuration file for Mobile Price Tracker
+
+# API Configuration
+API_HOST = "0.0.0.0"
+API_PORT = 8000
+API_RELOAD = True
+
+# Model Configuration
+TEST_SIZE = 0.2
+RANDOM_STATE = 42
+CV_FOLDS = 5
+N_JOBS = -1
+
+# Data Configuration
+RAW_DATA_PATH = "data/raw/mobile_data.csv"
+PROCESSED_DATA_PATH = "data/processed/mobile_dataset.csv"
+MODELS_PATH = "data/models"
+LOGS_PATH = "logs"
+
+# Logging Configuration
+LOG_LEVEL = "INFO"
+LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+
+# Monitoring Configuration
+ENABLE_METRICS = True
+METRICS_PORT = 9090
+
+# MLOps Configuration
+MLFLOW_TRACKING_URI = "file:./mlruns"
+DVC_REPO_PATH = "."
