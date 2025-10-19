@@ -355,3 +355,4 @@ poetry run pre-commit run --all-files
 poetry run safety check
 poetry run bandit -r src/
 ```
+

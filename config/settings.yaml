@@ -28,3 +28,4 @@ METRICS_PORT = 9090
 # MLOps Configuration
 MLFLOW_TRACKING_URI = "file:./mlruns"
 DVC_REPO_PATH = "."
+

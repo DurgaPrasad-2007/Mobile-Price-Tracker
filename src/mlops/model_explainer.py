@@ -232,3 +232,4 @@ def get_dvc_manager() -> DVCManager:
 def get_model_explainer() -> ModelExplainer:
     """Get model explainer instance"""
     return ModelExplainer()
+
