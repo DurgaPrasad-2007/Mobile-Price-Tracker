@@ -162,6 +162,41 @@ Run a simple system test:
 python test_system.py
 ```
 
+### Model Evaluation Notebook
+
+For comprehensive evaluation and testing, use the Jupyter notebook:
+
+```bash
+# Install Jupyter if not already installed
+poetry run pip install jupyter
+
+# Run the evaluation notebook
+poetry run jupyter notebook mobile_price_tracker_evaluation.ipynb
+```
+
+The notebook provides:
+- **Dataset Analysis**: Explore the mobile phone dataset and feature distributions
+- **Model Evaluation**: Comprehensive performance metrics and visualizations
+- **API Testing**: Test all FastAPI endpoints with real requests
+- **Performance Testing**: Measure response times and system throughput
+- **Sample Predictions**: Test with different phone specifications
+- **Model Comparison**: Analyze individual model contributions
+
+### Quick System Test
+
+The `test_system.py` script provides a fast way to verify system functionality:
+
+```bash
+python test_system.py
+```
+
+This tests:
+- ✅ Module imports
+- ✅ Data loading and preprocessing
+- ✅ Model loading
+- ✅ Direct model predictions
+- ✅ API endpoint availability
+
 ## Development
 
 ### Code Quality
